@@ -1,0 +1,14 @@
+node_modules
+dist
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+
+# Claude Code session/harness state — never part of the deployed app
+.claude/
+
+# Legacy/parallel scaffold not used by the deployed Vite app (src/, api/)
+wathaq/
+imag/
