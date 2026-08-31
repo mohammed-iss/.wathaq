@@ -14,6 +14,43 @@ async function gh(path, token) {
   });
 }
 
+// GitHub's modern Rulesets (repo Settings -> Rules -> Rulesets) don't show up via
+// the classic /branches/{branch}/protection endpoint at all -- they're a fully
+// separate system. This checks for an active branch ruleset that actually targets
+// the given branch, so a repo protected only via a ruleset isn't misreported as unprotected.
+async function checkRulesetProtection(owner, repo, branch, token) {
+  const listRes = await gh(`/repos/${owner}/${repo}/rulesets`, token);
+  if (!listRes.ok) {
+    return { enabled: false, detail: `"${branch}" has no branch protection rule` };
+  }
+  const rulesets = await listRes.json();
+  const activeBranchRulesets = rulesets.filter((r) => r.target === "branch" && r.enforcement === "active");
+  if (activeBranchRulesets.length === 0) {
+    return { enabled: false, detail: `"${branch}" has no branch protection rule` };
+  }
+
+  for (const summary of activeBranchRulesets) {
+    const detailRes = await gh(`/repos/${owner}/${repo}/rulesets/${summary.id}`, token);
+    if (!detailRes.ok) continue;
+    const rs = await detailRes.json();
+    const include = rs.conditions?.ref_name?.include || [];
+    const exclude = rs.conditions?.ref_name?.exclude || [];
+    const targetsBranch = include.some((p) => p === "~ALL" || p === "~DEFAULT_BRANCH" || p === `refs/heads/${branch}`);
+    const excluded = exclude.includes(`refs/heads/${branch}`);
+    if (targetsBranch && !excluded) {
+      const ruleTypes = (rs.rules || []).map((r) => r.type);
+      const readable = {
+        pull_request: "requires PR review", non_fast_forward: "blocks force pushes",
+        deletion: "blocks deletion", required_signatures: "requires signed commits",
+        required_status_checks: "requires status checks",
+      };
+      const detail = ruleTypes.map((t) => readable[t]).filter(Boolean).join(", ") || "protected via ruleset";
+      return { enabled: true, detail: `${detail} (ruleset: ${rs.name})` };
+    }
+  }
+  return { enabled: false, detail: `"${branch}" has no branch protection rule` };
+}
+
 export async function checkGithubRepo({ token, owner, repo }) {
   if (!token || !owner || !repo) {
     const err = new Error("token, owner, and repo are all required");
@@ -51,7 +88,10 @@ export async function checkGithubRepo({ token, owner, repo }) {
   const protectionRes = await gh(`/repos/${owner}/${repo}/branches/${defaultBranch}/protection`, token);
   let branchProtection;
   if (protectionRes.status === 404) {
-    branchProtection = { enabled: false, detail: `"${defaultBranch}" has no branch protection rule` };
+    // Classic branch protection sees nothing -- GitHub's newer Rulesets system is a
+    // separate mechanism with its own API, so a real "no classic protection" repo
+    // may still be protected via an active ruleset. Check that before calling it unprotected.
+    branchProtection = await checkRulesetProtection(owner, repo, defaultBranch, token);
   } else if (protectionRes.ok) {
     const p = await protectionRes.json();
     branchProtection = {
