@@ -13,10 +13,12 @@ import {
 } from "lucide-react";
 import {
   XAxis, YAxis, ResponsiveContainer, AreaChart, Area, Tooltip as RTooltip,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from "recharts";
 import { exportDashboardExcel, exportDashboardPDF } from "./export.js";
 import wathaqLogo from "./assets/wathaq-logo.png";
-import interfaceHero from "./assets/interface-hero.png";
+import interfaceHero from "./assets/interface-hero.jpg";
+import founderCard from "./assets/founder-card.jpg";
 
 /* ============================================================
    DESIGN TOKENS
@@ -96,6 +98,123 @@ const MATURITY_CYCLE = [1, 2, 3, 4, 5, "na"];
 const maturityWeight = (level) => (level === "na" ? null : level / 5);
 const STATUS_TO_MATURITY = { implemented: 5, partial: 3, not_implemented: 1, na: "na" };
 
+const FRAMEWORK_OVERVIEW = {
+  ISO27001: {
+    issuer: "International Organization for Standardization (ISO/IEC)",
+    points: [
+      "Internationally recognized information security management system (ISMS) standard",
+      "93 Annex A controls grouped into 4 themes -- Organizational, People, Physical, Technological",
+      "Commonly required in enterprise vendor security reviews worldwide",
+      "Forms the basis for third-party ISO/IEC 27001 certification audits",
+    ],
+  },
+  SAMA: {
+    issuer: "Saudi Central Bank (SAMA)",
+    points: [
+      "Mandatory Cyber Security Framework for Saudi banks, insurers, and finance companies",
+      "25 controls across 4 domains -- Leadership, Risk Management, Operations, Third Party",
+      "Focused specifically on financial-sector cyber resilience",
+      "Compliance is assessed through SAMA's own regulatory examination cycle",
+    ],
+  },
+  NCAECC: {
+    issuer: "National Cybersecurity Authority (Saudi Arabia)",
+    points: [
+      "Baseline Essential Cybersecurity Controls for Saudi government and critical-sector entities",
+      "108 controls across 4 domains -- Governance, Defense, Resilience, Third Party",
+      "Mandatory for regulated Saudi organizations",
+      "Aligned with the Kingdom's national cybersecurity strategy",
+    ],
+  },
+};
+
+function FrameworkReadinessCard() {
+  const { state } = useStore();
+  const { perFramework } = useCompliance();
+  const evidenceCount = useEvidenceCount();
+  const [fw, setFw] = useState(FRAMEWORKS[0].code);
+  const [openPoint, setOpenPoint] = useState(0);
+
+  const meta = FRAMEWORKS.find((f) => f.code === fw);
+  const score = perFramework.find((f) => f.code === fw)?.score ?? 0;
+  const controlEntries = CONTROLS_SAMPLE[fw] || [];
+  const total = controlEntries.length;
+  const okCount = controlEntries.filter(([code]) => {
+    const level = state.controls[fw]?.[code];
+    return typeof level === "number" && level >= 4;
+  }).length;
+  const needsEvidence = total - okCount;
+  const controlStatusPct = total ? Math.round((okCount / total) * 100) : 0;
+  const overview = FRAMEWORK_OVERVIEW[fw];
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-1">
+        <h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Framework Readiness</h3>
+        <div className="flex gap-1.5">
+          {FRAMEWORKS.map((f) => (
+            <button key={f.code} onClick={() => { setFw(f.code); setOpenPoint(0); }} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: fw === f.code ? C.accentSoft : "transparent", color: fw === f.code ? C.accent : C.mutedDim, border: `1px solid ${fw === f.code ? C.accent : C.border}` }}>{f.code}</button>
+          ))}
+        </div>
+      </div>
+      <p style={{ fontSize: 12.5, color: C.muted, marginBottom: 20 }}>Real numbers from your live control and evidence data -- not a static scorecard.</p>
+
+      <div className="grid md:grid-cols-[1fr_1fr_1fr_auto] gap-5 items-start">
+        <div>
+          <div style={{ fontFamily: F.mono, fontSize: 10.5, color: C.mutedDim, marginBottom: 6 }}>EVIDENCE COMPLETION</div>
+          <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 26 }}>{score}%</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>of {meta.name} controls scored</div>
+          <div className="mt-3 space-y-2">
+            <div>
+              <div className="flex justify-between mb-1" style={{ fontSize: 10.5, color: C.mutedDim }}><span>Auto-collected</span><span>{evidenceCount.auto}</span></div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.border }}><div className="h-full rounded-full" style={{ width: `${evidenceCount.total ? (evidenceCount.auto / evidenceCount.total) * 100 : 0}%`, background: C.success }} /></div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1" style={{ fontSize: 10.5, color: C.mutedDim }}><span>Manual documents</span><span>{evidenceCount.manual}</span></div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: C.border }}><div className="h-full rounded-full" style={{ width: `${evidenceCount.total ? (evidenceCount.manual / evidenceCount.total) * 100 : 0}%`, background: C.accent }} /></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontFamily: F.mono, fontSize: 10.5, color: C.mutedDim, marginBottom: 6 }}>CONTROL STATUS</div>
+          <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 26 }}>{controlStatusPct}%</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>of controls at Quantitatively Managed+</div>
+          <div className="mt-3 space-y-1.5">
+            <div className="flex items-center gap-1.5" style={{ fontSize: 12 }}><CheckCircle2 size={13} color={C.success} /><span style={{ color: C.textDim }}>{okCount} OK</span></div>
+            <div className="flex items-center gap-1.5" style={{ fontSize: 12 }}><Circle size={13} color={C.mutedDim} /><span style={{ color: C.textDim }}>{needsEvidence} need evidence</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontFamily: F.mono, fontSize: 10.5, color: C.mutedDim, marginBottom: 6 }}>CONTROL LIBRARY</div>
+          <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 26 }}>{total}</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>official {meta.code} controls tracked</div>
+        </div>
+
+        <div className="w-16 h-16 rounded-full flex items-center justify-center text-center shrink-0" style={{ border: `2px solid ${C.accent}`, background: C.accentSoft }}>
+          <span style={{ fontFamily: F.mono, fontWeight: 700, fontSize: 11, color: C.accent, lineHeight: 1.15 }}>{meta.code}</span>
+        </div>
+      </div>
+
+      <div className="mt-6 pt-5" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+        <div style={{ fontSize: 11, color: C.mutedDim, marginBottom: 10 }}>{meta.name} program overview · issued by {overview.issuer}</div>
+        <div className="space-y-1.5">
+          {overview.points.map((p, i) => (
+            <div key={i}>
+              <button onClick={() => setOpenPoint(openPoint === i ? -1 : i)} className="w-full flex items-center justify-between py-2 text-left" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                <span style={{ fontSize: 13, color: C.textDim }}>{p.split(" -- ")[0].split(",")[0].split(" across ")[0]}</span>
+                <ChevronDown size={14} color={C.mutedDim} style={{ transform: openPoint === i ? "rotate(180deg)" : "none", transition: "transform .15s ease" }} />
+              </button>
+              {openPoint === i && <p className="pt-1.5 pb-2" style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>{p}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 /* ============================================================
    REALISTIC SEED DATA
    ============================================================ */
@@ -112,7 +231,7 @@ const PEOPLE = [
 const FRAMEWORKS = [
   { code: "ISO27001", name: "ISO/IEC 27001:2022", controls: 93 },
   { code: "SAMA", name: "SAMA CSF", controls: 25 },
-  { code: "NCAECC", name: "NCA ECC-1:2018", controls: 108 },
+  { code: "NCAECC", name: "NCA ECC-1:2024", controls: 108 },
 ];
 
 const CONTROLS_SAMPLE = {
@@ -911,7 +1030,7 @@ const LANDING_I18N = {
     demo: "View live demo", gapAnalysis: "Gap Analysis",
     heroBadge: "AI-assisted multi-framework compliance",
     heroH1a: "One control.", heroH1b: "Every framework", heroH1c: "you're on the hook for.",
-    heroBody: "WATHAQ maps ISO/IEC 27001, SAMA CSF, and NCA ECC-1:2018 into a single control graph, scores your real risk, and tells you exactly what to fix first -- with the math shown.",
+    heroBody: "WATHAQ maps ISO/IEC 27001, SAMA CSF, and NCA ECC-1:2024 into a single control graph, scores your real risk, and tells you exactly what to fix first -- with the math shown.",
     noCard: "No credit card required", setup15: "Setup in under 15 minutes",
     criticalRisks: "5 critical risks", rankedByImpact: "ranked by business impact",
     dashboardEyebrow: "THE DASHBOARD", dashboardH2: "Everything a board needs, on one screen.",
@@ -932,7 +1051,7 @@ const LANDING_I18N = {
       { Icon: TrendingUp, title: "AI that shows its work", body: "Recommendations cite the exact compliance and risk delta they produce -- never a vague 'improve your posture.'" },
       { Icon: Zap, title: "Evidence that collects itself", body: "Connect Entra ID, M365, AWS, or your vulnerability scanner once -- WATHAQ pulls fresh evidence on a schedule." },
       { Icon: RadarIcon, title: "Incident-to-control tracing", body: "When something goes wrong, see exactly which missing control let it happen -- across all your frameworks at once." },
-      { Icon: Lock, title: "Built for NCA-regulated entities", body: "Native NCA ECC-1:2018 support with correct large-entity / SME applicability, not a generic global template." },
+      { Icon: Lock, title: "Built for NCA-regulated entities", body: "Native NCA ECC-1:2024 support with correct large-entity / SME applicability, not a generic global template." },
     ],
     howEyebrow: "HOW IT WORKS", howH2: "From zero to a ranked action plan, same day.",
     steps: [
@@ -955,8 +1074,8 @@ const LANDING_I18N = {
     nav: { platform: "المنصة", frameworks: "الأطر", howItWorks: "كيف تعمل", security: "الأمان" },
     demo: "شاهد العرض المباشر", gapAnalysis: "تحليل الفجوات",
     heroBadge: "امتثال متعدد الأطر بمساعدة الذكاء الاصطناعي",
-    heroH1a: "ضابط واحد.", heroH1b: "كل الأطر", heroH1c: "التي أنت مسؤول عنها.",
-    heroBody: "وثاق تربط ISO/IEC 27001 وSAMA CSF وNCA ECC-1:2018 في رسم بياني واحد للضوابط، تحسب مخاطرك الحقيقية، وتخبرك بالضبط بما يجب إصلاحه أولاً -- مع إظهار الحسابات.",
+    heroH1a: "بسّط إدارة الأمن السيبراني", heroH1b: "والامتثال", heroH1c: "في مكان واحد.",
+    heroBody: "اربط المخاطر بالضوابط والمتطلبات والأدلة، واحصل على رؤية واضحة لمستوى التزامك.",
     noCard: "لا حاجة لبطاقة ائتمان", setup15: "الإعداد في أقل من 15 دقيقة",
     criticalRisks: "5 مخاطر حرجة", rankedByImpact: "مرتبة حسب تأثيرها على الأعمال",
     dashboardEyebrow: "لوحة التحكم", dashboardH2: "كل ما يحتاجه مجلس الإدارة، في شاشة واحدة.",
@@ -970,14 +1089,14 @@ const LANDING_I18N = {
       { title: "استخدام التشفير", meta: "ISO27001 · 8.24", score: 14 },
     ],
     mappedTo: "مرتبطة أصليًا بـ",
-    whyEyebrow: "لماذا وثاق", whyH2: "مبنية للفرق المسؤولة أمام أكثر من مدقق.",
+    whyEyebrow: "لماذا وثاق", whyH2: "منصة واحدة للفرق المسؤولة أمام متطلبات متعددة.",
     features: [
       { Icon: GitMerge, title: "ضابط واحد، مرتبط بكل مكان", body: "نفّذ الضابط مرة واحدة. وثاق تنشره تلقائيًا عبر ISO 27001 وSAMA CSF وNCA ECC." },
       { Icon: Target, title: "مرتب حسب المخاطر، لا أبجديًا", body: "كل فجوة تُقيَّم حسب احتمالية الحدوث × تأثيرها على الأعمال، حتى يعمل فريقك دائمًا على الأهم أولًا." },
       { Icon: TrendingUp, title: "ذكاء اصطناعي يوضح عمله", body: "التوصيات تستشهد بالتغير الدقيق في الامتثال والمخاطر الذي تنتجه -- لا عبارات غامضة مثل 'حسّن وضعك الأمني'." },
       { Icon: Zap, title: "أدلة تجمع نفسها", body: "اربط Entra ID أو M365 أو AWS أو أداة فحص الثغرات مرة واحدة -- وثاق تسحب أدلة محدّثة بجدول زمني." },
       { Icon: RadarIcon, title: "تتبع الحادث إلى الضابط", body: "عندما يحدث خطأ، اعرف بالضبط أي ضابط ناقص سمح بحدوثه -- عبر كل أطرك في آن واحد." },
-      { Icon: Lock, title: "مبنية للجهات الخاضعة لهيئة الأمن السيبراني", body: "دعم أصلي لـ NCA ECC-1:2018 مع التصنيف الصحيح للمنشآت الكبيرة والمتوسطة والصغيرة، وليس نموذجًا عامًا." },
+      { Icon: Lock, title: "مبنية للجهات الخاضعة لهيئة الأمن السيبراني", body: "دعم أصلي لـ NCA ECC-1:2024 مع التصنيف الصحيح للمنشآت الكبيرة والمتوسطة والصغيرة، وليس نموذجًا عامًا." },
     ],
     howEyebrow: "كيف تعمل", howH2: "من الصفر إلى خطة عمل مرتبة، في نفس اليوم.",
     steps: [
@@ -985,7 +1104,7 @@ const LANDING_I18N = {
       { n: "02", title: "أطعمها بما لديك", body: "اربط مزوّد الهوية والسحابة، أو ارفع سياساتك الحالية -- الذكاء الاصطناعي يعبّئ حالة الضوابط مسبقًا." },
       { n: "03", title: "احصل على خطة عمل مرتبة", body: "تصل إلى لوحة تحكم تعرف مسبقًا درجتك ومخاطرك وما يجب إصلاحه أولًا." },
     ],
-    securityEyebrow: "الأمان", securityH2: "أدلتك تستحق نفس الصرامة التي تُدقّق بها.",
+    securityEyebrow: "الأمان", securityH2: "حماية أدلتك وموثوقيتها في كل مرحلة.",
     securityItems: [
       { Icon: Lock, title: "مشفّرة في كل مكان", body: "تشفير AES-256 أثناء التخزين وTLS 1.2+ أثناء النقل لكل قطعة دليل وبيانات ضوابط تخزّنها." },
       { Icon: ShieldCheck, title: "تحكم بالوصول حسب الدور", body: "كل عضو في مساحة العمل يحصل بالضبط على الصلاحية التي يحتاجها دوره -- لا أكثر." },
@@ -1044,7 +1163,7 @@ function Landing({ onStart, onDemo }) {
             <div className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full" style={{ background: C.accentSoft, border: `1px solid rgba(140,124,250,.3)` }}>
               <span style={{ fontFamily: F.mono, fontSize: 12, color: C.accent }}>{t.heroBadge}</span>
             </div>
-            <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(34px,4.6vw,58px)", lineHeight: 1.06, letterSpacing: "-0.02em" }}>
+            <h1 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(34px,4.6vw,58px)", lineHeight: lang === "ar" ? 1.5 : 1.06, letterSpacing: lang === "ar" ? "normal" : "-0.02em" }}>
               {t.heroH1a}<br /><span style={{ color: C.accent }}>{t.heroH1b}</span> <br />{t.heroH1c}
             </h1>
             <p style={{ fontSize: 17, color: C.muted, marginTop: 22, maxWidth: 460, lineHeight: 1.65 }}>
@@ -1127,7 +1246,7 @@ function Landing({ onStart, onDemo }) {
       <div id="frameworks" className="px-6 md:px-12 py-10 border-y" style={{ borderColor: C.borderSoft, scrollMarginTop: 90 }}>
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-14 gap-y-4" style={{ color: C.mutedDim }}>
           <span style={{ fontFamily: F.mono, fontSize: 12 }}>{t.mappedTo}</span>
-          {["ISO/IEC 27001:2022", "SAMA CSF", "NCA ECC-1:2018"].map((n) => <span key={n} style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, color: C.textDim }}>{n}</span>)}
+          {["ISO/IEC 27001:2022", "SAMA CSF", "NCA ECC-1:2024"].map((n) => <span key={n} style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, color: C.textDim }}>{n}</span>)}
         </div>
       </div>
 
@@ -1148,20 +1267,8 @@ function Landing({ onStart, onDemo }) {
       </div>
 
       <div id="how-it-works" className="px-6 md:px-12 py-28" style={{ background: C.bgSoft, borderTop: `1px solid ${C.borderSoft}`, borderBottom: `1px solid ${C.borderSoft}`, scrollMarginTop: 90 }}>
-        <div className="max-w-6xl mx-auto">
-          <div className="max-w-xl mb-16">
-            <span style={{ fontFamily: F.mono, fontSize: 12, color: C.accent2 }}>{t.howEyebrow}</span>
-            <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: "clamp(26px,3vw,36px)", marginTop: 10 }}>{t.howH2}</h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-10">
-            {t.steps.map((s) => (
-              <div key={s.n}>
-                <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 42, color: "transparent", WebkitTextStroke: `1.5px ${C.border}` }}>{s.n}</div>
-                <h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 17, marginTop: 4, marginBottom: 8 }}>{s.title}</h3>
-                <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6 }}>{s.body}</p>
-              </div>
-            ))}
-          </div>
+        <div className="max-w-5xl mx-auto">
+          <img src={founderCard} alt="Mohammed Ali Al-Saqoor" className="w-full h-auto rounded-2xl" />
         </div>
       </div>
 
@@ -1582,7 +1689,7 @@ function Onboarding({ onComplete, onExit }) {
                       <Loader2 size={88} color={C.accent} className="animate-spin" style={{ opacity: 0.9 }} />
                     </div>
                   </div>
-                  <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: 24 }}>Analyzing your policy with Gemini…</h2>
+                  <h2 style={{ fontFamily: F.display, fontWeight: 800, fontSize: 24 }}>Analyzing your policy with AI…</h2>
                   <div className="mt-8 max-w-sm mx-auto space-y-3 text-left">
                     {ANALYSIS_STEPS.map((s, i) => (
                       <div key={s} className="flex items-center gap-3">
@@ -1732,6 +1839,48 @@ function Topbar({ title, subtitle, onExit }) {
 /* ============================================================
    DASHBOARD
    ============================================================ */
+// Scoped to the executive dashboard only -- every other page keeps the existing
+// C.* palette untouched. Values per the exec-dashboard color spec.
+const DC = {
+  bg: "#0B1220", surface: "#111827", border: "#1F2937",
+  primary: "#14B8A6", positive: "#22C55E", warning: "#F59E0B", critical: "#EF4444", info: "#3B82F6",
+  text: "#F1F5F9", textDim: "#94A3B8", textMuted: "#64748B",
+};
+const DC_LEVEL = { critical: DC.critical, high: DC.warning, medium: DC.info, low: DC.positive };
+
+function DcCard({ children, style = {}, className = "" }) {
+  return <div className={`rounded-2xl ${className}`} style={{ background: DC.surface, border: `1px solid ${DC.border}`, ...style }}>{children}</div>;
+}
+function DcLabel({ children, style = {} }) {
+  return <div style={{ fontFamily: F.mono, fontSize: 10.5, letterSpacing: ".04em", color: DC.textMuted, textTransform: "uppercase", ...style }}>{children}</div>;
+}
+function DcKpi({ label, value, unit, sub, badge, badgeColor }) {
+  return (
+    <DcCard className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <DcLabel>{label}</DcLabel>
+        {badge && <span className="flex items-center gap-1" style={{ fontSize: 10.5, color: badgeColor || DC.positive, fontFamily: F.mono }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: badgeColor || DC.positive }} />{badge}</span>}
+      </div>
+      <div className="flex items-baseline gap-1.5">
+        <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 40, color: DC.text, lineHeight: 1 }}>{value}</span>
+        {unit && <span style={{ fontFamily: F.display, fontWeight: 600, fontSize: 16, color: DC.textDim }}>{unit}</span>}
+      </div>
+      {sub && <div style={{ fontSize: 12, color: DC.textDim, marginTop: 8 }}>{sub}</div>}
+    </DcCard>
+  );
+}
+function DcImpactBar({ value, max, color, label }) {
+  const pct = Math.max(2, Math.round((value / max) * 100));
+  return (
+    <div>
+      {label && <div className="flex items-center justify-between mb-1" style={{ fontSize: 11, color: DC.textDim }}><span>{label}</span><span style={{ fontFamily: F.mono, color: DC.text, fontWeight: 700 }}>{value}</span></div>}
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: DC.border }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage() {
   const { state, actions, toast } = useStore();
   const { perFramework, unified } = useCompliance();
@@ -1739,6 +1888,79 @@ function DashboardPage() {
   const evidenceCount = useEvidenceCount();
   const openRisks = useMemo(() => [...state.risks].filter((r) => r.status !== "Resolved" && r.status !== "Mitigated").sort((a, b) => b.score - a.score), [state.risks]);
   const health = useMemo(() => ({ connected: state.connectors.filter((c) => c.status === "connected").length, total: state.connectors.length }), [state.connectors]);
+
+  // --- real derived metrics for the executive layout below ---------------------
+  const risksWithLevel = useMemo(() => state.risks.map((r) => ({ ...r, level: r.level || scoreToLevel(r.score) })), [state.risks]);
+  const riskDist = useMemo(() => {
+    const d = { critical: 0, high: 0, medium: 0, low: 0 };
+    risksWithLevel.forEach((r) => { d[r.level] = (d[r.level] || 0) + 1; });
+    return { ...d, total: risksWithLevel.length };
+  }, [risksWithLevel]);
+  const priorityActions = useMemo(() => [...risksWithLevel].sort((a, b) => b.score - a.score).slice(0, 5), [risksWithLevel]);
+
+  const controlGaps = useMemo(() => {
+    // "gap" = controls not yet at maturity 5 (Optimizing), per framework and total.
+    const perFw = {};
+    let total = 0, totalCount = 0;
+    FRAMEWORKS.forEach((f) => {
+      const map = state.controls[f.code] || {};
+      const entries = Object.values(map).filter((v) => v !== "na");
+      const gaps = entries.filter((v) => v !== 5).length;
+      perFw[f.code] = gaps;
+      total += gaps;
+      totalCount += entries.length;
+    });
+    return { perFw, total, totalCount };
+  }, [state.controls]);
+
+  const evidenceByFramework = useMemo(() => {
+    // % of a framework's controls that have >=1 uploaded evidence item referencing them.
+    const out = {};
+    FRAMEWORKS.forEach((f) => {
+      const total = (CONTROLS_SAMPLE[f.code] || []).length;
+      const covered = new Set(
+        state.evidence.filter((e) => e.control && e.control.startsWith(f.code)).map((e) => e.control)
+      ).size;
+      out[f.code] = total ? Math.round((covered / total) * 100) : 0;
+    });
+    return out;
+  }, [state.evidence]);
+
+  const evidenceHealthPct = useMemo(() => {
+    const connectorPart = health.total ? (health.connected / health.total) * 70 : 0;
+    const manualDone = state.evidence.filter((e) => e.status === "done").length;
+    const manualPart = state.evidence.length ? (manualDone / state.evidence.length) * 30 : 0;
+    return Math.round(connectorPart + manualPart);
+  }, [health, state.evidence]);
+
+  const connectorHealth = useMemo(() => {
+    const STALE_MS = 6 * 3600000;
+    let healthy = 0, warning = 0, failed = 0;
+    state.connectors.forEach((c) => {
+      if (c.status !== "connected") failed += 1;
+      else if (c.lastSync && Date.now() - c.lastSync > STALE_MS) warning += 1;
+      else healthy += 1;
+    });
+    return { healthy, warning, failed, total: state.connectors.length };
+  }, [state.connectors]);
+
+  const TARGET_SCORE = 70;
+  const radarData = useMemo(() => {
+    const compliance = unified;
+    const evidence = evidenceHealthPct;
+    const riskPosture = 100 - riskIndex;
+    const readiness = Math.round((compliance + evidence + riskPosture) / 3);
+    return [
+      { metric: "Compliance", value: compliance },
+      { metric: "Evidence", value: evidence },
+      { metric: "Risk Posture", value: riskPosture },
+      { metric: "Readiness", value: readiness },
+    ];
+  }, [unified, evidenceHealthPct, riskIndex]);
+
+  // Cross-framework example: use the real AI-generated chain if one exists, else a
+  // clearly-labeled illustrative example (never claimed as this org's live data).
+  const crossFwExample = state.gapAnalysis?.riskControlGaps?.[0] || null;
 
   const [aiOpen, setAiOpen] = useState(false);
   const [aiStage, setAiStage] = useState(-1);
@@ -1764,7 +1986,7 @@ function DashboardPage() {
       setAiStage(STAGES_AI.length - 1);
       setAiRecommendations(data.recommendations || []);
       setAiDone(true);
-      actions.addActivity("framework", "AI recommendations regenerated by Gemini");
+      actions.addActivity("framework", "AI recommendations regenerated");
     } catch (err) {
       setAiError(err.message || "Failed to generate recommendations");
       setAiOpen(false);
@@ -1811,158 +2033,318 @@ function DashboardPage() {
     }
   };
 
+  // proportional, internally-consistent split of the score-gap across the 3 real gap sources
+  const gapToTarget = Math.max(0, TARGET_SCORE - unified);
+  const highCritCount = riskDist.critical + riskDist.high;
+  const avgEvidenceCoverage = Math.round((evidenceByFramework.ISO27001 + evidenceByFramework.SAMA + evidenceByFramework.NCAECC) / 3);
+  const evidenceGapCount = Math.max(0, Math.round((100 - avgEvidenceCoverage) / 10));
+  const impactWeights = [controlGaps.total, evidenceGapCount, highCritCount];
+  const impactSum = impactWeights.reduce((a, b) => a + b, 0) || 1;
+  const impactSplit = impactWeights.map((w) => Math.round((w / impactSum) * gapToTarget));
+
+  const priorityDue = { critical: "7 days", high: "14 days", medium: "30 days", low: "60 days" };
+  const priorityLabel = { critical: "CRITICAL", high: "HIGH", medium: "MEDIUM", low: "LOW" };
+
+  const aiTotals = useMemo(() => {
+    if (!aiRecommendations?.length) return null;
+    const num = (s) => parseFloat(String(s).replace(/[^0-9.-]/g, "")) || 0;
+    return {
+      scoreGain: aiRecommendations.reduce((a, r) => a + num(r.complianceDelta), 0),
+      riskReduction: aiRecommendations.reduce((a, r) => a + Math.abs(num(r.riskDelta)), 0),
+      count: aiRecommendations.length,
+      top: aiRecommendations[0]?.title,
+    };
+  }, [aiRecommendations]);
+
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-8 space-y-5" style={{ background: DC.bg }}>
       <div className="flex items-center justify-end gap-3">
-        <GhostButton onClick={handleExportExcel} icon={FileSpreadsheet} disabled={exporting === "excel"} style={{ padding: "8px 14px", fontSize: 13 }}>
+        <GhostButton onClick={handleExportExcel} icon={FileSpreadsheet} disabled={exporting === "excel"} style={{ padding: "8px 14px", fontSize: 13, borderColor: DC.border, color: DC.textDim }}>
           {exporting === "excel" ? "Exporting…" : "Export Excel"}
         </GhostButton>
-        <GhostButton onClick={handleExportPDF} icon={Download} disabled={exporting === "pdf"} style={{ padding: "8px 14px", fontSize: 13 }}>
+        <GhostButton onClick={handleExportPDF} icon={Download} disabled={exporting === "pdf"} style={{ padding: "8px 14px", fontSize: 13, borderColor: DC.border, color: DC.textDim }}>
           {exporting === "pdf" ? "Exporting…" : "Export PDF"}
         </GhostButton>
       </div>
-      {state.gapAnalysis && (
-        <Card className="p-5" style={{ background: `linear-gradient(180deg, ${C.surface}, ${C.bgSoft})`, borderColor: C.accent }}>
-          <div className="flex items-center gap-2 mb-2">
-            <span style={{ fontFamily: F.mono, fontSize: 11, color: C.accent2 }}>GAP ANALYSIS · GENERATED BY GEMINI · {timeAgo(state.gapAnalysis.generatedAt)}</span>
-          </div>
-          <p style={{ fontSize: 13.5, color: C.textDim, lineHeight: 1.6 }}>{state.gapAnalysis.overallSummary}</p>
-        </Card>
-      )}
-      <div className="grid md:grid-cols-3 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontFamily: F.mono, fontSize: 11.5, color: C.muted }}>UNIFIED COMPLIANCE SCORE</span>
-            <Badge color={C.success} bg={C.successSoft}><TrendingUp size={11} />live</Badge>
-          </div>
-          <div className="pt-2"><ScoreRing value={unified} color={C.accent} /></div>
-        </Card>
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontFamily: F.mono, fontSize: 11.5, color: C.muted }}>RISK SCORE</span>
-            <Badge color={riskIndex < 40 ? C.success : C.warning} bg={riskIndex < 40 ? C.successSoft : C.warningSoft}><TrendingDown size={11} />live</Badge>
-          </div>
-          <div className="pt-2"><ScoreRing value={riskIndex} color={C.accent2} /></div>
-        </Card>
-        <Card className="p-6">
-          <span style={{ fontFamily: F.mono, fontSize: 11.5, color: C.muted }}>CONNECTOR HEALTH</span>
-          <div className="flex items-center gap-3 mt-4">
-            <div className="rounded-full p-3" style={{ background: C.successSoft }}><Cpu size={20} color={C.success} /></div>
-            <div>
-              <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 24 }}>{health.connected}<span style={{ fontSize: 14, color: C.mutedDim, fontWeight: 600 }}> / {health.total}</span></div>
-              <div style={{ fontSize: 11.5, color: C.muted }}>sources connected</div>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5">
-            {state.connectors.slice(0, 10).map((c) => <div key={c.name} title={c.name} className="w-2 h-2 rounded-full" style={{ background: c.status === "connected" ? C.success : c.status === "syncing" ? C.accent2 : C.border }} />)}
-          </div>
-        </Card>
+
+      {/* 1. EXECUTIVE KPI ROW */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <DcKpi label="Unified Compliance Score" value={unified} unit="/ 100" badge="live" />
+        <DcKpi label="Risk Exposure" value={riskIndex} unit="/ 100" badge="live" badgeColor={riskIndex < 40 ? DC.positive : DC.warning} />
+        <DcKpi label="Evidence Health" value={evidenceHealthPct} unit="%" sub={`${evidenceCount.manual} manual · ${evidenceCount.auto} from connectors`} />
+        <DcKpi label="Framework Coverage" value={FRAMEWORKS.length} unit={`/ ${FRAMEWORKS.length}`}
+          sub={perFramework.map((f) => `${f.code.replace("27001", "")} ${f.score}%`).join(" · ")} />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Framework Comparison</h3>
-          <p style={{ fontSize: 12.5, color: C.muted, marginBottom: 20 }}>Score per framework, weighted equally into the unified score. Updates as you assess controls.</p>
-          {perFramework.map((f) => (
-            <div key={f.code} className="mb-4">
-              <div className="flex items-center justify-between mb-1.5"><span style={{ fontSize: 13, fontWeight: 600 }}>{f.name}</span><span style={{ fontFamily: F.mono, fontSize: 12.5, color: C.textDim }}>{f.score}%</span></div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: C.border }}><div className="h-full rounded-full" style={{ width: `${f.score}%`, background: `linear-gradient(90deg, ${C.accent2}, ${C.accent})`, transition: "width .6s ease" }} /></div>
+      {/* 6. FRAMEWORK COMPARISON -- placed near the top per request */}
+      <div className="grid md:grid-cols-2 gap-5">
+        <DcCard className="p-6">
+          <DcLabel style={{ marginBottom: 14 }}>Framework Comparison</DcLabel>
+          <table className="w-full" style={{ fontSize: 12.5 }}>
+            <thead><tr style={{ color: DC.textMuted, fontSize: 10.5 }}>
+              <th className="text-left pb-2">FRAMEWORK</th><th className="text-right pb-2">SCORE</th><th className="text-right pb-2">GAP</th><th className="text-right pb-2">EVIDENCE</th>
+            </tr></thead>
+            <tbody>
+              {perFramework.map((f) => (
+                <tr key={f.code} style={{ borderTop: `1px solid ${DC.border}` }}>
+                  <td className="py-2.5" style={{ color: DC.text, fontWeight: 600 }}>{f.name}</td>
+                  <td className="py-2.5 text-right" style={{ fontFamily: F.mono, color: DC.primary }}>{f.score}%</td>
+                  <td className="py-2.5 text-right" style={{ fontFamily: F.mono, color: DC.textDim }}>{controlGaps.perFw[f.code]}</td>
+                  <td className="py-2.5 text-right" style={{ fontFamily: F.mono, color: DC.textDim }}>{evidenceByFramework[f.code]}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </DcCard>
+        <DcCard className="p-6">
+          <DcLabel style={{ marginBottom: 4 }}>Posture Radar</DcLabel>
+          <div style={{ width: "100%", height: 200 }}>
+            <ResponsiveContainer>
+              <RadarChart data={radarData} outerRadius="75%">
+                <PolarGrid stroke={DC.border} />
+                <PolarAngleAxis dataKey="metric" tick={{ fill: DC.textDim, fontSize: 11 }} />
+                <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
+                <Radar dataKey="value" stroke={DC.primary} fill={DC.primary} fillOpacity={0.35} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </DcCard>
+      </div>
+
+      {/* 2. DECISION IMPACT */}
+      <DcCard className="p-6">
+        <DcLabel style={{ marginBottom: 10 }}>Fastest Path to Target</DcLabel>
+        <div className="flex items-center gap-4 mb-6 flex-wrap">
+          <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 30, color: DC.text }}>{unified}</span>
+          <div className="flex-1 min-w-[160px] h-2 rounded-full overflow-hidden" style={{ background: DC.border }}>
+            <div className="h-full rounded-full" style={{ width: `${Math.min(100, (unified / TARGET_SCORE) * 100)}%`, background: DC.primary }} />
+          </div>
+          <span style={{ fontFamily: F.mono, fontSize: 13, color: DC.textDim }}>{TARGET_SCORE} TARGET</span>
+          <Badge color={DC.warning} bg="rgba(245,158,11,.12)">gap {gapToTarget}</Badge>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl" style={{ background: DC.bg, border: `1px solid ${DC.border}` }}>
+            <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.text }}>{controlGaps.total} <span style={{ fontSize: 13, fontWeight: 600, color: DC.textDim }}>controls</span></div>
+            <div style={{ fontSize: 11.5, color: DC.positive, marginTop: 4 }}>+{impactSplit[0]} potential score impact</div>
+          </div>
+          <div className="p-4 rounded-xl" style={{ background: DC.bg, border: `1px solid ${DC.border}` }}>
+            <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.text }}>{evidenceGapCount} <span style={{ fontSize: 13, fontWeight: 600, color: DC.textDim }}>evidence gaps</span></div>
+            <div style={{ fontSize: 11.5, color: DC.positive, marginTop: 4 }}>+{impactSplit[1]} potential score impact</div>
+          </div>
+          <div className="p-4 rounded-xl" style={{ background: DC.bg, border: `1px solid ${DC.border}` }}>
+            <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.text }}>{highCritCount} <span style={{ fontSize: 13, fontWeight: 600, color: DC.textDim }}>high/critical risks</span></div>
+            <div style={{ fontSize: 11.5, color: DC.critical, marginTop: 4 }}>+{impactSplit[2]} potential score impact</div>
+          </div>
+        </div>
+      </DcCard>
+
+      {/* 3. PRIORITY ACTIONS */}
+      <DcCard className="p-6">
+        <DcLabel style={{ marginBottom: 14 }}>Priority Actions</DcLabel>
+        <div className="space-y-3">
+          {priorityActions.map((r, i) => (
+            <div key={r.id} className="p-4 rounded-xl" style={{ background: DC.bg, border: `1px solid ${DC.border}` }}>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <span style={{ fontFamily: F.mono, fontSize: 11, color: DC.textMuted }}>{String(i + 1).padStart(2, "0")}</span>
+                  <span style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, color: DC.text }}>{r.title}</span>
+                  <Badge color={DC_LEVEL[r.level]} bg={`${DC_LEVEL[r.level]}22`}>{priorityLabel[r.level]}</Badge>
+                </div>
+                <button onClick={() => toast.info(`${r.title} — full impact breakdown coming soon`)} style={{ fontSize: 12, color: DC.primary, fontFamily: F.mono }}>VIEW IMPACT →</button>
+              </div>
+              <div className="grid md:grid-cols-3 gap-4 mb-3">
+                <DcImpactBar label="Compliance Impact" value={Math.round(r.score / 2)} max={20} color={DC.positive} />
+                <DcImpactBar label="Risk Impact" value={r.score} max={25} color={DC.critical} />
+                <div style={{ fontSize: 11.5, color: DC.textDim }}>
+                  <div><span style={{ color: DC.textMuted }}>Framework:</span> {r.framework} · {r.code}</div>
+                  <div><span style={{ color: DC.textMuted }}>Owner:</span> {r.owner}</div>
+                  <div><span style={{ color: DC.textMuted }}>Suggested:</span> {priorityDue[r.level]}</div>
+                </div>
+              </div>
             </div>
           ))}
-        </Card>
+        </div>
+      </DcCard>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-1"><Activity size={15} color={C.accent} /><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Recent Activity</h3></div>
-          <p style={{ fontSize: 12.5, color: C.muted, marginBottom: 14 }}>Live feed across connectors, evidence, risk, and assessments.</p>
-          <div style={{ maxHeight: 230, overflowY: "auto" }} className="space-y-3">
-            {state.activity.slice(0, 8).map((a) => {
-              const meta = ACTIVITY_META[a.type] || { Icon: Info, color: C.muted };
-              return (
-                <div key={a.id} className="flex items-start gap-2.5">
-                  <div className="rounded-full p-1.5 mt-0.5" style={{ background: `${meta.color}1E` }}><meta.Icon size={12} color={meta.color} /></div>
-                  <div className="flex-1 min-w-0"><div style={{ fontSize: 12.5, color: C.textDim, lineHeight: 1.4 }}>{a.text}</div><div style={{ fontSize: 10.5, color: C.mutedDim, marginTop: 1 }}>{timeAgo(a.ts)}</div></div>
-                </div>
-              );
+      {/* 4. CROSS-FRAMEWORK IMPACT */}
+      <DcCard className="p-6">
+        <div className="flex items-center justify-between mb-1">
+          <DcLabel>Cross-Framework Impact</DcLabel>
+          {!crossFwExample && <span style={{ fontSize: 10.5, color: DC.textMuted, fontFamily: F.mono }}>EXAMPLE · run Gap Analysis for your own data</span>}
+        </div>
+        {(() => {
+          const ex = crossFwExample || {
+            control: "Multi-Factor Authentication", frameworkMapping: [
+              { code: "ISO27001", controlRef: "5.15", status: "Not Implemented" },
+              { code: "NCAECC", controlRef: "2-4-1", status: "Partial" },
+              { code: "SAMA", controlRef: "AC-3", status: "Not Implemented" },
+            ],
+          };
+          return (
+            <div className="grid md:grid-cols-2 gap-6 items-center mt-4">
+              <div className="flex flex-col items-center gap-2 py-4">
+                <div className="px-4 py-2 rounded-lg" style={{ background: `${DC.primary}22`, color: DC.primary, fontFamily: F.mono, fontSize: 12 }}>1 CONTROL — {ex.control}</div>
+                <div style={{ color: DC.textMuted }}>↓</div>
+                <div className="px-4 py-2 rounded-lg" style={{ background: DC.bg, border: `1px solid ${DC.border}`, fontFamily: F.mono, fontSize: 12, color: DC.textDim }}>{ex.frameworkMapping.length} REQUIREMENTS</div>
+                <div style={{ color: DC.textMuted }}>↓</div>
+                <div className="px-4 py-2 rounded-lg" style={{ background: DC.bg, border: `1px solid ${DC.border}`, fontFamily: F.mono, fontSize: 12, color: DC.textDim }}>{ex.frameworkMapping.length} FRAMEWORKS</div>
+                <div style={{ color: DC.textMuted }}>↓</div>
+                <div className="px-4 py-2 rounded-lg" style={{ background: `${DC.positive}22`, color: DC.positive, fontFamily: F.mono, fontSize: 12 }}>+{Math.round((ex.riskScore || 12) / 2) || 12} COMPLIANCE IMPACT</div>
+              </div>
+              <div className="grid gap-2">
+                {ex.frameworkMapping.map((m) => {
+                  const meta = FRAMEWORKS.find((f) => f.code === m.code);
+                  const statusColor = m.status === "Implemented" ? DC.positive : m.status === "Partial" ? DC.warning : DC.critical;
+                  return (
+                    <div key={m.code} className="flex items-center justify-between p-3 rounded-lg" style={{ background: DC.bg, border: `1px solid ${DC.border}` }}>
+                      <div><div style={{ fontSize: 12.5, fontWeight: 600, color: DC.text }}>{meta?.name || m.code}</div><div style={{ fontFamily: F.mono, fontSize: 11, color: DC.textMuted }}>{m.controlRef}</div></div>
+                      <Badge color={statusColor} bg={`${statusColor}22`}>{m.status}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+      </DcCard>
+
+      <div className="grid md:grid-cols-2 gap-5">
+        {/* 5. EVIDENCE INTELLIGENCE */}
+        <DcCard className="p-6">
+          <DcLabel style={{ marginBottom: 14 }}>Evidence Intelligence</DcLabel>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 26, color: DC.text }}>{evidenceCount.total}</div><div style={{ fontSize: 10.5, color: DC.textMuted }}>TOTAL EVIDENCE</div></div>
+            <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 26, color: DC.text }}>{evidenceCount.manual}</div><div style={{ fontSize: 10.5, color: DC.textMuted }}>MANUAL</div></div>
+            <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 26, color: DC.text }}>{evidenceCount.auto}</div><div style={{ fontSize: 10.5, color: DC.textMuted }}>FROM CONNECTORS</div></div>
+          </div>
+          <div className="space-y-2">
+            {FRAMEWORKS.map((f) => (
+              <DcImpactBar key={f.code} label={`${f.name} evidence coverage`} value={evidenceByFramework[f.code]} max={100} color={DC.primary} />
+            ))}
+          </div>
+        </DcCard>
+
+        {/* 8. RISK DISTRIBUTION */}
+        <DcCard className="p-6">
+          <div className="flex items-center justify-between mb-4"><DcLabel>Risk Distribution</DcLabel><span style={{ fontFamily: F.mono, fontSize: 11, color: DC.textDim }}>Total: {riskDist.total}</span></div>
+          <div className="h-3 rounded-full overflow-hidden flex mb-4" style={{ background: DC.border }}>
+            {["critical", "high", "medium", "low"].map((lvl) => riskDist[lvl] > 0 && (
+              <div key={lvl} style={{ width: `${(riskDist[lvl] / (riskDist.total || 1)) * 100}%`, background: DC_LEVEL[lvl] }} />
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {["critical", "high", "medium", "low"].map((lvl) => (
+              <div key={lvl}>
+                <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 20, color: DC_LEVEL[lvl] }}>{riskDist[lvl]}</div>
+                <div style={{ fontSize: 10, color: DC.textMuted, textTransform: "uppercase" }}>{lvl}</div>
+              </div>
+            ))}
+          </div>
+        </DcCard>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-5">
+        {/* 7. EXECUTIVE ATTENTION */}
+        <DcCard className="p-6">
+          <DcLabel style={{ marginBottom: 14 }}>Executive Attention</DcLabel>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { n: riskDist.critical, label: "CRITICAL RISK", color: DC.critical },
+              { n: controlGaps.total, label: "OPEN CONTROLS", color: DC.warning },
+              { n: connectorHealth.warning, label: "STALE CONNECTORS", color: DC.warning },
+              { n: connectorHealth.failed, label: "CONNECTOR ISSUES", color: DC.critical },
+            ].map((x) => (
+              <div key={x.label} className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: x.color }} />
+                <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.text }}>{x.n}</div><div style={{ fontSize: 10, color: DC.textMuted }}>{x.label}</div></div>
+              </div>
+            ))}
+          </div>
+        </DcCard>
+
+        {/* 10. CONNECTOR HEALTH */}
+        <DcCard className="p-6">
+          <div className="flex items-center justify-between mb-4"><DcLabel>Connectors</DcLabel><span style={{ fontFamily: F.mono, fontSize: 13, color: DC.text }}>{health.connected} / {health.total}</span></div>
+          <div className="grid grid-cols-3 gap-3 mb-4 text-center">
+            <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 20, color: DC.positive }}>{connectorHealth.healthy}</div><div style={{ fontSize: 10, color: DC.textMuted }}>HEALTHY</div></div>
+            <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 20, color: DC.warning }}>{connectorHealth.warning}</div><div style={{ fontSize: 10, color: DC.textMuted }}>WARNING</div></div>
+            <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 20, color: DC.critical }}>{connectorHealth.failed}</div><div style={{ fontSize: 10, color: DC.textMuted }}>FAILED</div></div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {state.connectors.map((c) => {
+              const stale = c.status === "connected" && c.lastSync && Date.now() - c.lastSync > 6 * 3600000;
+              const color = c.status !== "connected" ? DC.critical : stale ? DC.warning : DC.positive;
+              return <div key={c.name} title={c.name} className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />;
             })}
           </div>
-        </Card>
+        </DcCard>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Top Missing Controls</h3>
-            <Badge color={C.critical} bg={C.criticalSoft}>{openRisks.length} open</Badge>
+      {/* 9. AI ACTION PLAN */}
+      <DcCard className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <DcLabel>AI Action Plan</DcLabel>
+          {aiDone && <button onClick={generateAI} title="Regenerate" style={{ color: DC.textMuted }}><RefreshCw size={14} /></button>}
+        </div>
+        {!aiOpen && !aiDone && (
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <p style={{ fontSize: 12.5, color: DC.textDim, maxWidth: 420 }}>Run the AI analysis to get a ranked action plan with real compliance and risk impact for each fix.</p>
+            <PrimaryButton onClick={generateAI}>Generate Action Plan</PrimaryButton>
           </div>
-          {openRisks.length === 0 ? (
-            <EmptyState Icon={CheckCircle2} title="No open risks" body="Every tracked control is implemented or mitigated. Nice work." />
-          ) : (
-            <div className="space-y-1">
-              {openRisks.slice(0, 5).map((m) => (
-                <div key={m.id} className="flex items-center justify-between py-2.5 border-b group" style={{ borderColor: C.borderSoft }}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: LEVEL_META[m.level] }} />
-                    <div className="min-w-0">
-                      <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.title}</div>
-                      <div style={{ fontSize: 11, color: C.mutedDim, fontFamily: F.mono }}>{m.framework} · {m.code} · {m.owner}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span style={{ fontFamily: F.mono, fontSize: 12.5, color: LEVEL_META[m.level], fontWeight: 600 }}>{m.score}</span>
-                    <button onClick={() => { quickResolve(m.framework, m.code); }} title="Mark control implemented" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <CheckCircle2 size={16} color={C.success} />
-                    </button>
+        )}
+        {aiOpen && !aiDone && (
+          <div className="py-6">
+            <div className="flex justify-center mb-5"><Loader2 size={30} color={DC.primary} className="animate-spin" /></div>
+            <StageChecklist stages={STAGES_AI} currentIndex={aiStage} />
+          </div>
+        )}
+        {aiDone && aiTotals && (
+          <div>
+            <div className="grid grid-cols-4 gap-4 mb-5 pb-5" style={{ borderBottom: `1px solid ${DC.border}` }}>
+              <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.positive }}>+{Math.round(aiTotals.scoreGain)}</div><div style={{ fontSize: 10, color: DC.textMuted }}>POTENTIAL SCORE GAIN</div></div>
+              <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.critical }}>−{Math.round(aiTotals.riskReduction)}%</div><div style={{ fontSize: 10, color: DC.textMuted }}>RISK REDUCTION</div></div>
+              <div><div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: DC.text }}>{aiTotals.count}</div><div style={{ fontSize: 10, color: DC.textMuted }}>ESTIMATED ACTIONS</div></div>
+              <div><div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 13, color: DC.text, marginTop: 4 }}>{aiTotals.top}</div><div style={{ fontSize: 10, color: DC.textMuted }}>TOP PRIORITY</div></div>
+            </div>
+            <div className="space-y-2">
+              {aiRecommendations.slice(0, 5).map((r, i) => (
+                <div key={r.title} className="flex items-center justify-between p-3 rounded-lg" style={{ background: DC.bg, border: `1px solid ${DC.border}` }}>
+                  <div className="flex items-center gap-3"><span style={{ fontFamily: F.mono, fontSize: 11, color: DC.textMuted }}>{String(i + 1).padStart(2, "0")}</span><span style={{ fontSize: 13, fontWeight: 600, color: DC.text }}>{r.title}</span></div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span style={{ fontFamily: F.mono, fontSize: 12, color: DC.positive }}>{r.complianceDelta} SCORE</span>
+                    <span style={{ fontFamily: F.mono, fontSize: 12, color: DC.critical }}>{r.riskDelta} RISK</span>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </Card>
-
-        <Card className="p-6" style={{ background: `linear-gradient(180deg, ${C.surface}, ${C.bgSoft})` }}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>AI Recommendations</h3></div>
-            {aiDone && <button onClick={generateAI} title="Regenerate" style={{ color: C.mutedDim }}><RefreshCw size={14} /></button>}
           </div>
+        )}
+      </DcCard>
 
-          {!aiOpen && !aiDone && (
-            <EmptyState title="No recommendations generated yet" body="Run the AI analysis to get a ranked action plan with compliance and risk impact for each fix." actionLabel="Generate recommendations" onAction={generateAI} />
-          )}
-          {aiOpen && !aiDone && (
-            <div className="py-6">
-              <div className="flex justify-center mb-5"><Loader2 size={34} color={C.accent} className="animate-spin" /></div>
-              <StageChecklist stages={STAGES_AI} currentIndex={aiStage} />
-            </div>
-          )}
-          {aiDone && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-1.5" style={{ fontSize: 10.5, color: C.mutedDim, fontFamily: F.mono }}>
-                Generated by Gemini from your live control &amp; risk data
+      {/* Recent Activity — small sidebar, latest 5 only */}
+      <DcCard className="p-6">
+        <DcLabel style={{ marginBottom: 12 }}>Recent Activity</DcLabel>
+        <div className="space-y-2.5">
+          {state.activity.slice(0, 5).map((a) => {
+            const meta = ACTIVITY_META[a.type] || { Icon: Info, color: DC.textDim };
+            return (
+              <div key={a.id} className="flex items-start gap-2.5">
+                <div className="rounded-full p-1.5 mt-0.5" style={{ background: `${meta.color}1E` }}><meta.Icon size={11} color={meta.color} /></div>
+                <div className="flex-1 min-w-0"><div style={{ fontSize: 12, color: DC.textDim, lineHeight: 1.4 }}>{a.text}</div><div style={{ fontSize: 10, color: DC.textMuted, marginTop: 1 }}>{timeAgo(a.ts)}</div></div>
               </div>
-              {(aiRecommendations || []).slice(0, 2).map((r) => (
-                <div key={r.title} className="p-4 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>{r.title}</div>
-                  <p style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.5, marginBottom: 10 }}>{r.body}</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge color={C.success} bg={C.successSoft}>{r.complianceDelta} compliance</Badge>
-                    <Badge color={C.critical} bg={C.criticalSoft}>{r.riskDelta} risk</Badge>
-                    <Badge color={C.muted} bg="rgba(255,255,255,.05)">{r.effort} effort</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
+            );
+          })}
+        </div>
+      </DcCard>
 
       {state.gapAnalysis && (
-        <Card className="p-6">
+        <DcCard className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><ShieldAlert size={16} color={C.accent2} /><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15 }}>Risk → Control → Frameworks → Gap</h3></div>
-            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: C.mutedDim }}>from your Gap Analysis · {timeAgo(state.gapAnalysis.generatedAt)}</span>
+            <div className="flex items-center gap-2"><ShieldAlert size={16} color={DC.primary} /><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 15, color: DC.text }}>Risk → Control → Frameworks → Gap</h3></div>
+            <span style={{ fontFamily: F.mono, fontSize: 10.5, color: DC.textMuted }}>from your Gap Analysis · {timeAgo(state.gapAnalysis.generatedAt)}</span>
           </div>
           <RiskControlGapList items={state.gapAnalysis.riskControlGaps} />
-        </Card>
+        </DcCard>
       )}
     </div>
   );
@@ -2147,10 +2529,124 @@ function ConnectorCard({ c, onConnect, onDisconnect }) {
   );
 }
 
+function RealGithubConnector() {
+  const [token, setToken] = useState("");
+  const [owner, setOwner] = useState("");
+  const [repo, setRepo] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const connect = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/github-connector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, owner, repo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Connection failed");
+      setResult(data);
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="p-6 mb-12" style={{ borderColor: C.accent }}>
+      <div className="flex items-center gap-2 mb-1"><GitBranch size={16} color={C.accent} /><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Connect a Real System — GitHub</h3></div>
+      <p style={{ fontSize: 12.5, color: C.muted, marginBottom: 18 }}>
+        Every other card above is a simulated demo. This one is a real, live connection to the GitHub REST API --
+        it reads your token, your repo's actual branch protection rule, and its actual Dependabot status. Nothing here is faked.
+      </p>
+
+      <form onSubmit={connect} className="grid md:grid-cols-4 gap-3 items-end">
+        <div>
+          <label style={{ fontSize: 11, color: C.mutedDim, display: "block", marginBottom: 4 }}>Personal Access Token</label>
+          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="ghp_…" required className="w-full px-3 py-2 rounded-lg outline-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, fontSize: 13 }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: C.mutedDim, display: "block", marginBottom: 4 }}>Owner / org</label>
+          <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="e.g. octocat" required className="w-full px-3 py-2 rounded-lg outline-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, fontSize: 13 }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: C.mutedDim, display: "block", marginBottom: 4 }}>Repository</label>
+          <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="e.g. hello-world" required className="w-full px-3 py-2 rounded-lg outline-none" style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, fontSize: 13 }} />
+        </div>
+        <PrimaryButton type="submit" disabled={loading} style={{ padding: "9px 16px", fontSize: 13 }}>{loading ? "Checking…" : "Connect & check"}</PrimaryButton>
+      </form>
+      <p style={{ fontSize: 10.5, color: C.mutedDim, marginTop: 8 }}>Your token is sent once to check these two items, then discarded -- it's never saved anywhere.</p>
+
+      {error && (
+        <div className="mt-4 flex items-center gap-2 p-3 rounded-lg" style={{ background: C.criticalSoft, color: C.critical, fontSize: 13 }}>
+          <AlertTriangle size={15} />{error}
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-5 p-4 rounded-xl" style={{ background: C.surface2, border: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between mb-3" style={{ fontSize: 12, color: C.mutedDim, fontFamily: F.mono }}>
+            <span>{result.repo} · {result.visibility} · default branch "{result.defaultBranch}"</span>
+            <span>authenticated as {result.connectedAs}</span>
+          </div>
+          <div className="space-y-2">
+            {result.checks.map((c) => (
+              <div key={c.name} className="flex items-center gap-2.5">
+                {c.enabled === true ? <CheckCircle2 size={16} color={C.success} /> : c.enabled === false ? <XCircle size={16} color={C.critical} /> : <MinusCircle size={16} color={C.warning} />}
+                <div><span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span><span style={{ fontSize: 12.5, color: C.muted, marginLeft: 8 }}>{c.detail}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const CONTROL_RESULT_META = {
+  pass: { label: "PASS", color: C.success, bg: C.successSoft, Icon: CheckCircle2 },
+  fail: { label: "FAIL", color: C.critical, bg: C.criticalSoft, Icon: XCircle },
+  partial: { label: "PARTIAL", color: C.warning, bg: C.warningSoft, Icon: MinusCircle },
+  requires_review: { label: "NEEDS REVIEW", color: C.warning, bg: C.warningSoft, Icon: AlertTriangle },
+  not_assessed: { label: "NOT ASSESSED", color: C.mutedDim, bg: C.surface2, Icon: Circle },
+};
+
 function EvidencePage() {
   const { state, actions } = useStore();
   const [category, setCategory] = useState("All");
   const fileInputRef = useRef(null);
+  const extractInputRef = useRef(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractResult, setExtractResult] = useState(null);
+  const [extractError, setExtractError] = useState(null);
+
+  const handleRealExtraction = async (file) => {
+    if (!file) return;
+    setExtracting(true);
+    setExtractError(null);
+    setExtractResult(null);
+    try {
+      const fileBase64 = await fileToBase64(file);
+      const res = await fetch("/api/evidence-extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, fileMimeType: file.type, fileBase64 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Extraction failed");
+      setExtractResult(data);
+    } catch (err) {
+      setExtractError(err.message || String(err));
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const connectedCount = state.connectors.filter((c) => c.status === "connected").length;
   const autoEvidence = state.connectors.reduce((sum, c) => sum + c.evidence, 0);
@@ -2204,6 +2700,8 @@ function EvidencePage() {
         {filtered.map((c) => <ConnectorCard key={c.name} c={c} onConnect={actions.startConnectorSync} onDisconnect={actions.disconnectConnector} />)}
       </div>
 
+      <RealGithubConnector />
+
       <div className="mb-4">
         <div className="flex items-center gap-2"><FolderOpen size={16} color={C.accent2} /><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Manual Sources</h3></div>
         <p style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>For anything without a connector -- policies, contracts, sign-off records. AI reads and links each file to the controls it satisfies.</p>
@@ -2237,6 +2735,65 @@ function EvidencePage() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      <div className="mt-12 mb-4">
+        <div className="flex items-center gap-2"><Cpu size={16} color={C.accent} /><h3 style={{ fontFamily: F.display, fontWeight: 700, fontSize: 16 }}>Real-Time Evidence Extraction</h3></div>
+        <p style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>Upload a real PDF or DOCX policy. AI extracts individual, source-cited statements -- a deterministic rules engine, not the AI, decides PASS/FAIL against the control library below.</p>
+      </div>
+
+      <input ref={extractInputRef} type="file" accept=".pdf,.docx" className="hidden" onChange={(e) => { handleRealExtraction(e.target.files?.[0]); e.target.value = ""; }} />
+      <button onClick={() => extractInputRef.current?.click()} disabled={extracting} className="w-full flex flex-col items-center justify-center gap-2.5 py-10 rounded-xl mb-5" style={{ border: `1.5px dashed ${C.accent}`, background: C.accentSoft, opacity: extracting ? 0.7 : 1 }}>
+        {extracting ? <Loader2 size={22} color={C.accent} className="animate-spin" /> : <Upload size={22} color={C.accent} />}
+        <div style={{ fontFamily: F.display, fontWeight: 600, fontSize: 13.5 }}>{extracting ? "Reading document, extracting evidence…" : "Click to upload a real PDF or DOCX"}</div>
+        <div style={{ fontSize: 11.5, color: C.mutedDim }}>Runs the actual extraction + rules engine, live</div>
+      </button>
+
+      {extractError && (
+        <Card className="p-5 mb-5" style={{ borderColor: C.critical }}>
+          <div className="flex items-center gap-2" style={{ color: C.critical, fontSize: 13 }}><AlertTriangle size={16} />{extractError}</div>
+        </Card>
+      )}
+
+      {extractResult && (
+        <>
+          <Card className="overflow-hidden mb-5">
+            <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${C.border}`, fontSize: 12, color: C.mutedDim, fontFamily: F.mono }}>
+              {extractResult.fileName} — {extractResult.evidenceCount} evidence object{extractResult.evidenceCount === 1 ? "" : "s"} extracted
+            </div>
+            <table className="w-full" style={{ fontSize: 13 }}>
+              <thead><tr style={{ borderBottom: `1px solid ${C.border}` }}>{["Source", "Subject.Attribute", "Extracted → Normalized"].map((h) => <th key={h} className="text-left px-5 py-2.5" style={{ fontSize: 10.5, color: C.mutedDim, textTransform: "uppercase", letterSpacing: ".04em" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {extractResult.evidence.map((e, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                    <td className="px-5 py-2.5" style={{ fontFamily: F.mono, color: C.accent, fontSize: 12 }}>{e.source_location}</td>
+                    <td className="px-5 py-2.5" style={{ fontFamily: F.mono, fontSize: 12 }}>{e.subject}.{e.attribute}</td>
+                    <td className="px-5 py-2.5" style={{ color: C.muted }}>"{e.extracted_value}" → {e.requiresReview ? <span style={{ color: C.warning }}>needs review</span> : e.normalized_value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: `1px solid ${C.border}`, fontSize: 12, color: C.mutedDim, fontFamily: F.mono }}>RULES ENGINE VERDICT (deterministic)</div>
+            <table className="w-full" style={{ fontSize: 13 }}>
+              <thead><tr style={{ borderBottom: `1px solid ${C.border}` }}>{["Control", "Result", "Reasoning"].map((h) => <th key={h} className="text-left px-5 py-2.5" style={{ fontSize: 10.5, color: C.mutedDim, textTransform: "uppercase", letterSpacing: ".04em" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {extractResult.controlResults.map((c) => {
+                  const meta = CONTROL_RESULT_META[c.overall] || CONTROL_RESULT_META.not_assessed;
+                  return (
+                    <tr key={c.name} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                      <td className="px-5 py-3">{c.name}</td>
+                      <td className="px-5 py-3"><Badge color={meta.color} bg={meta.bg}><meta.Icon size={12} />{meta.label}</Badge></td>
+                      <td className="px-5 py-3" style={{ color: C.muted, fontSize: 12.5 }}>{c.verdicts.map((v) => v.reasoning).join(" ")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </>
       )}
     </div>
   );

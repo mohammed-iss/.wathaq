@@ -101,7 +101,7 @@ Based ONLY on the data above, produce 3 to 5 ranked, actionable recommendations 
 const CORE_FRAMEWORKS = [
   { code: "ISO27001", name: "ISO/IEC 27001:2022", refStyle: 'decimal clause numbers, e.g. "8.7", "5.15", "8.24"' },
   { code: "SAMA", name: "SAMA CSF", refStyle: 'dot-numbered domain codes, e.g. "3.2", "2.1"' },
-  { code: "NCAECC", name: "NCA ECC-1:2018", refStyle: 'dash-numbered domain codes, e.g. "2-3-3", "2-13-2"' },
+  { code: "NCAECC", name: "NCA ECC-1:2024", refStyle: 'dash-numbered domain codes, e.g. "2-3-3", "2-13-2"' },
 ];
 
 export function buildGapAnalysisPrompt({ company, scope, frameworks, security, documentTypesProvided, documentTypesNotProvided }) {
@@ -163,7 +163,7 @@ export async function callGemini(apiKey, { contents, schema }) {
   );
   if (!geminiRes.ok) {
     const errText = await geminiRes.text();
-    const err = new Error(`Gemini API error: ${errText}`);
+    const err = new Error(`AI service error: ${errText}`);
     err.status = geminiRes.status;
     throw err;
   }
